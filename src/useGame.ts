@@ -85,6 +85,24 @@ function isValidMove(piece: Piece, from: Position, to: Position, board: Board): 
   return false;
 }
 
+function hasValidMoves(player: Player, board: Board): boolean {
+  for (let r1 = 0; r1 < 3; r1++) {
+    for (let c1 = 0; c1 < 3; c1++) {
+      const cell = board[r1][c1];
+      if (cell && cell.owner === player) {
+        for (let r2 = 0; r2 < 3; r2++) {
+          for (let c2 = 0; c2 < 3; c2++) {
+            if (isValidMove(cell, [r1, c1], [r2, c2], board)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 export function useGame() {
   const [gameState, setGameState] = useState<GameState>(INITIAL_STATE);
 
@@ -123,13 +141,21 @@ export function useGame() {
       
       const newPhase = totalDeployed === 6 ? 'movement' : 'deployment';
       const nextTurn = currentTurn === 'player1' ? 'player2' : 'player1';
+      let newStatus: GameState['gameStatus'] = prevState.gameStatus;
+
+      if (newPhase === 'movement') {
+        if (!hasValidMoves(nextTurn, newBoard)) {
+          newStatus = currentTurn === 'player1' ? 'player1_wins' : 'player2_wins';
+        }
+      }
 
       return {
         ...prevState,
         board: newBoard,
         players: newPlayers,
         phase: newPhase,
-        currentTurn: nextTurn
+        currentTurn: nextTurn,
+        gameStatus: newStatus
       };
     });
   }, []);
@@ -160,19 +186,21 @@ export function useGame() {
         [currentTurn]: { pieces: newPieces }
       };
 
+      const nextTurn = currentTurn === 'player1' ? 'player2' : 'player1';
+
       // Check win
       let newStatus: GameState['gameStatus'] = prevState.gameStatus;
       if (checkWin(newBoard, currentTurn)) {
         newStatus = currentTurn === 'player1' ? 'player1_wins' : 'player2_wins';
-      } else {
-        // Simple draw condition: no legal moves for next player? It might be complex. Let's keep it simple for now.
+      } else if (!hasValidMoves(nextTurn, newBoard)) {
+        newStatus = currentTurn === 'player1' ? 'player1_wins' : 'player2_wins';
       }
 
       return {
         ...prevState,
         board: newBoard,
         players: newPlayers,
-        currentTurn: currentTurn === 'player1' ? 'player2' : 'player1',
+        currentTurn: nextTurn,
         gameStatus: newStatus
       };
     });
