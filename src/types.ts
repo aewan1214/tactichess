@@ -1,5 +1,7 @@
 export type PieceType = 'king' | 'rook' | 'bishop';
 export type Player = 'player1' | 'player2';
+export type GameMode = 'pvp' | 'ai';
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface Piece {
   type: PieceType;

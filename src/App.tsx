@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from './useGame';
-import type { PieceType, Player, Position } from './types';
+import type { PieceType, Player, Position, GameMode, AIDifficulty } from './types';
+import { computeAIMove } from './ai';
 import './index.css';
 
 const PieceIcon = ({ type }: { type: PieceType }) => {
@@ -13,13 +14,34 @@ const PieceIcon = ({ type }: { type: PieceType }) => {
 
 function App() {
   const [view, setView] = useState<'menu' | 'game'>('menu');
+  const [gameMode, setGameMode] = useState<GameMode>('pvp');
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('medium');
+  
   const { gameState, deployPiece, movePiece, resetGame, isValidMove } = useGame();
   
   // Selection states
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedBoardPos, setSelectedBoardPos] = useState<Position | null>(null);
 
+  // AI Hook
+  useEffect(() => {
+    if (view === 'game' && gameMode === 'ai' && gameState.currentTurn === 'player2' && gameState.gameStatus === 'ongoing') {
+      const timer = setTimeout(() => {
+        const move = computeAIMove(gameState, difficulty);
+        if (move) {
+          if (move.type === 'deploy') {
+            deployPiece(move.pieceId, move.position);
+          } else {
+            movePiece(move.from, move.to);
+          }
+        }
+      }, 700); // Slight delay for human readability
+      return () => clearTimeout(timer);
+    }
+  }, [view, gameMode, gameState, difficulty, deployPiece, movePiece]);
+
   const handleCellClick = (r: number, c: number) => {
+    if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
     const clickedCell = gameState.board[r][c];
 
     if (gameState.phase === 'deployment') {
@@ -53,6 +75,7 @@ function App() {
   };
 
   const handleUndeployedClick = (id: string, owner: Player) => {
+    if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
     if (gameState.phase !== 'deployment' || owner !== gameState.currentTurn) return;
     setSelectedPieceId(id === selectedPieceId ? null : id);
   };
@@ -95,18 +118,18 @@ function App() {
 
   if (view === 'menu') {
     return (
-      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel" style={{ padding: '4rem', textAlign: 'center', maxWidth: '650px' }}>
-          <h1 style={{ fontSize: '4rem', fontWeight: 800, letterSpacing: '0.05em', background: 'linear-gradient(to right, #60a5fa, #c084fc, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '1rem', textShadow: '0 0 30px rgba(192, 132, 252, 0.4)' }}>
+      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem', boxSizing: 'border-box' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel" style={{ padding: '2rem 3rem', textAlign: 'center', maxWidth: '650px', display: 'flex', flexDirection: 'column', maxHeight: '95vh' }}>
+          <h1 style={{ fontSize: '3rem', fontWeight: 800, letterSpacing: '0.05em', background: 'linear-gradient(to right, #60a5fa, #c084fc, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '0.5rem', textShadow: '0 0 30px rgba(192, 132, 252, 0.4)' }}>
             TACTICHESS
           </h1>
-          <p style={{ fontSize: '1.25rem', color: '#cbd5e1', marginBottom: '3rem' }}>
+          <p style={{ fontSize: '1rem', color: '#cbd5e1', marginBottom: '1.5rem' }}>
             A strategic 3x3 hybrid game combining chess movement with tic-tac-toe win conditions.
           </p>
           
-          <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: '2rem', borderRadius: '1rem', marginBottom: '3rem' }}>
-            <h3 style={{ color: '#fff', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>How to Play</h3>
-            <ul style={{ color: '#cbd5e1', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: 0 }}>
+          <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '1rem', marginBottom: '1.5rem' }}>
+            <h3 style={{ color: '#fff', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.25rem', fontSize: '1.1rem' }}>How to Play</h3>
+            <ul style={{ color: '#cbd5e1', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0, fontSize: '0.9rem' }}>
               <li><strong>Deployment:</strong> Alternate turns placing your 3 pieces (King, Rook, Bishop) onto empty tiles.</li>
               <li><strong>Movement:</strong> Once all 6 pieces are placed, move them following standard Chess rules.</li>
               <li><strong>No Capturing:</strong> You cannot capture pieces or jump over them.</li>
@@ -115,7 +138,24 @@ function App() {
             </ul>
           </div>
 
-          <button className="play-button" onClick={() => setView('game')}>Start Game</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '350px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button className={`mode-btn ${gameMode === 'pvp' ? 'active' : ''}`} onClick={() => setGameMode('pvp')}>Player vs Player</button>
+              <button className={`mode-btn ${gameMode === 'ai' ? 'active' : ''}`} onClick={() => setGameMode('ai')}>Player vs AI</button>
+            </div>
+            
+            <AnimatePresence>
+              {gameMode === 'ai' && (
+                <motion.div initial={{ height: 0, opacity: 0, scale: 0.9 }} animate={{ height: 'auto', opacity: 1, scale: 1 }} exit={{ height: 0, opacity: 0, scale: 0.9 }} style={{ display: 'flex', gap: '0.5rem', overflow: 'hidden' }}>
+                  <button className={`diff-btn ${difficulty === 'easy' ? 'active' : ''}`} onClick={() => setDifficulty('easy')}>Easy</button>
+                  <button className={`diff-btn ${difficulty === 'medium' ? 'active' : ''}`} onClick={() => setDifficulty('medium')}>Medium</button>
+                  <button className={`diff-btn ${difficulty === 'hard' ? 'active' : ''}`} onClick={() => setDifficulty('hard')}>Hard</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button className="play-button" onClick={() => setView('game')} style={{ marginTop: '1.5rem' }}>Start Game</button>
+          </div>
         </motion.div>
       </div>
     );
@@ -132,7 +172,7 @@ function App() {
           <span className={`dot ${gameState.currentTurn}`}></span>
           {gameState.gameStatus === 'ongoing' ? (
             <span style={{ letterSpacing: '0.05em' }}>
-              <strong>{gameState.currentTurn === 'player1' ? 'Player 1' : 'Player 2'}'s Turn</strong>
+              <strong>{gameState.currentTurn === 'player1' ? 'Player 1' : (gameMode === 'ai' ? 'AI' : 'Player 2')}'s Turn</strong>
               <span style={{ opacity: 0.7, marginLeft: '8px' }}>— {gameState.phase === 'deployment' ? 'Deployment Phase' : 'Movement Phase'}</span>
             </span>
           ) : (
@@ -189,7 +229,7 @@ function App() {
               >
                 <h2>
                   {gameState.gameStatus === 'player1_wins' && 'Player 1 Wins!'}
-                  {gameState.gameStatus === 'player2_wins' && 'Player 2 Wins!'}
+                  {gameState.gameStatus === 'player2_wins' && (gameMode === 'ai' ? 'AI Wins!' : 'Player 2 Wins!')}
                   {gameState.gameStatus === 'draw' && 'Draw!'}
                 </h2>
                 <button className="reset-btn" onClick={() => {
@@ -204,7 +244,7 @@ function App() {
           </AnimatePresence>
         </div>
 
-        {renderPlayerSidebar('player2', 'Player 2')}
+        {renderPlayerSidebar('player2', gameMode === 'ai' ? `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})` : 'Player 2')}
 
         </div>
       </div>

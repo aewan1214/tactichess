@@ -35,7 +35,7 @@ const winPatterns = [
   [[0,2],[1,1],[2,0]]
 ];
 
-function checkWin(board: Board, player: Player): boolean {
+export function checkWin(board: Board, player: Player): boolean {
   for (const pattern of winPatterns) {
     if (pattern.every(([r, c]) => board[r][c] !== null && board[r][c]?.owner === player)) {
       return true;
@@ -63,7 +63,7 @@ function isPathClear(from: Position, to: Position, board: Board, type: PieceType
   return true;
 }
 
-function isValidMove(piece: Piece, from: Position, to: Position, board: Board): boolean {
+export function isValidMove(piece: Piece, from: Position, to: Position, board: Board): boolean {
   const [r1, c1] = from;
   const [r2, c2] = to;
   const rowDiff = r2 - r1;
@@ -85,7 +85,7 @@ function isValidMove(piece: Piece, from: Position, to: Position, board: Board): 
   return false;
 }
 
-function hasValidMoves(player: Player, board: Board): boolean {
+export function hasValidMoves(player: Player, board: Board): boolean {
   for (let r1 = 0; r1 < 3; r1++) {
     for (let c1 = 0; c1 < 3; c1++) {
       const cell = board[r1][c1];

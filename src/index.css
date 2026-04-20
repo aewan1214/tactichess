@@ -324,3 +324,26 @@ h1, h2, h3 {
   line-height: 1.4;
   margin: 0;
 }
+
+/* AI Difficulty & Mode Buttons */
+.mode-btn, .diff-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  flex: 1;
+}
+
+.mode-btn.active, .diff-btn.active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.mode-btn:hover:not(.active), .diff-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.15);
+}
