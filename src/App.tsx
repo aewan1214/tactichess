@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from './useGame';
 import type { PieceType, Player, Position, GameMode, AIDifficulty } from './types';
 import { computeAIMove } from './ai';
+import { sounds } from './sounds';
 import './index.css';
 
 const PieceIcon = ({ type }: { type: PieceType }) => {
@@ -31,14 +32,23 @@ function App() {
         if (move) {
           if (move.type === 'deploy') {
             deployPiece(move.pieceId, move.position);
+            sounds.playMove();
           } else {
             movePiece(move.from, move.to);
+            sounds.playMove();
           }
         }
       }, 700); // Slight delay for human readability
       return () => clearTimeout(timer);
     }
   }, [view, gameMode, gameState, difficulty, deployPiece, movePiece]);
+
+  // Win Hook
+  useEffect(() => {
+    if (gameState.gameStatus === 'player1_wins' || gameState.gameStatus === 'player2_wins') {
+      sounds.playWin();
+    }
+  }, [gameState.gameStatus]);
 
   const handleCellClick = (r: number, c: number) => {
     if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
@@ -48,6 +58,9 @@ function App() {
       if (selectedPieceId && !clickedCell) {
         deployPiece(selectedPieceId, [r, c]);
         setSelectedPieceId(null);
+        sounds.playMove();
+      } else if (selectedPieceId && clickedCell) {
+        sounds.playError();
       }
     } else {
       // Movement Phase
@@ -59,16 +72,26 @@ function App() {
         if (selectedCell && isValidMove(selectedCell, selectedBoardPos, [r, c], gameState.board)) {
           movePiece(selectedBoardPos, [r, c]);
           setSelectedBoardPos(null);
+          sounds.playMove();
         } else if (clickedCell && clickedCell.owner === gameState.currentTurn) {
           // Select a different piece
           setSelectedBoardPos([r, c]);
+          sounds.playClick();
         } else {
           // Deselect
           setSelectedBoardPos(null);
+          if (clickedCell && clickedCell.owner !== gameState.currentTurn) {
+            sounds.playError();
+          } else {
+            sounds.playClick();
+          }
         }
       } else {
         if (clickedCell && clickedCell.owner === gameState.currentTurn) {
           setSelectedBoardPos([r, c]);
+          sounds.playClick();
+        } else if (clickedCell) {
+          sounds.playError();
         }
       }
     }
@@ -76,7 +99,13 @@ function App() {
 
   const handleUndeployedClick = (id: string, owner: Player) => {
     if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
-    if (gameState.phase !== 'deployment' || owner !== gameState.currentTurn) return;
+    if (gameState.phase !== 'deployment' || owner !== gameState.currentTurn) {
+      if (owner !== gameState.currentTurn || gameState.phase !== 'deployment') {
+        sounds.playError();
+      }
+      return;
+    }
+    sounds.playClick();
     setSelectedPieceId(id === selectedPieceId ? null : id);
   };
 
@@ -140,21 +169,21 @@ function App() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '350px', margin: '0 auto' }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button className={`mode-btn ${gameMode === 'pvp' ? 'active' : ''}`} onClick={() => setGameMode('pvp')}>Player vs Player</button>
-              <button className={`mode-btn ${gameMode === 'ai' ? 'active' : ''}`} onClick={() => setGameMode('ai')}>Player vs AI</button>
+              <button className={`mode-btn ${gameMode === 'pvp' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setGameMode('pvp'); }}>Player vs Player</button>
+              <button className={`mode-btn ${gameMode === 'ai' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setGameMode('ai'); }}>Player vs AI</button>
             </div>
             
             <AnimatePresence>
               {gameMode === 'ai' && (
                 <motion.div initial={{ height: 0, opacity: 0, scale: 0.9 }} animate={{ height: 'auto', opacity: 1, scale: 1 }} exit={{ height: 0, opacity: 0, scale: 0.9 }} style={{ display: 'flex', gap: '0.5rem', overflow: 'hidden' }}>
-                  <button className={`diff-btn ${difficulty === 'easy' ? 'active' : ''}`} onClick={() => setDifficulty('easy')}>Easy</button>
-                  <button className={`diff-btn ${difficulty === 'medium' ? 'active' : ''}`} onClick={() => setDifficulty('medium')}>Medium</button>
-                  <button className={`diff-btn ${difficulty === 'hard' ? 'active' : ''}`} onClick={() => setDifficulty('hard')}>Hard</button>
+                  <button className={`diff-btn ${difficulty === 'easy' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('easy'); }}>Easy</button>
+                  <button className={`diff-btn ${difficulty === 'medium' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('medium'); }}>Medium</button>
+                  <button className={`diff-btn ${difficulty === 'hard' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('hard'); }}>Hard</button>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <button className="play-button" onClick={() => setView('game')} style={{ marginTop: '1.5rem' }}>Start Game</button>
+            <button className="play-button" onClick={() => { sounds.playClick(); setView('game'); }} style={{ marginTop: '1.5rem' }}>Start Game</button>
           </div>
         </motion.div>
       </div>
@@ -233,6 +262,7 @@ function App() {
                   {gameState.gameStatus === 'draw' && 'Draw!'}
                 </h2>
                 <button className="reset-btn" onClick={() => {
+                  sounds.playClick();
                   resetGame();
                   setSelectedPieceId(null);
                   setSelectedBoardPos(null);
@@ -280,6 +310,7 @@ function App() {
         
         <button 
           onClick={() => {
+            sounds.playClick();
             setView('menu');
             resetGame();
             setSelectedPieceId(null);
