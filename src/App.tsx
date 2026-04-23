@@ -17,8 +17,11 @@ function App() {
   const [view, setView] = useState<'menu' | 'game'>('menu');
   const [gameMode, setGameMode] = useState<GameMode>('pvp');
   const [difficulty, setDifficulty] = useState<AIDifficulty>('medium');
+  const [aiGoesFirst, setAiGoesFirst] = useState(false);
   
   const { gameState, deployPiece, movePiece, resetGame, isValidMove } = useGame();
+  
+  const aiPlayer = gameMode === 'ai' ? (aiGoesFirst ? 'player1' : 'player2') : null;
   
   // Selection states
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
@@ -26,7 +29,7 @@ function App() {
 
   // AI Hook
   useEffect(() => {
-    if (view === 'game' && gameMode === 'ai' && gameState.currentTurn === 'player2' && gameState.gameStatus === 'ongoing') {
+    if (view === 'game' && gameMode === 'ai' && gameState.currentTurn === aiPlayer && gameState.gameStatus === 'ongoing') {
       const timer = setTimeout(() => {
         const move = computeAIMove(gameState, difficulty);
         if (move) {
@@ -41,7 +44,7 @@ function App() {
       }, 700); // Slight delay for human readability
       return () => clearTimeout(timer);
     }
-  }, [view, gameMode, gameState, difficulty, deployPiece, movePiece]);
+  }, [view, gameMode, gameState, difficulty, deployPiece, movePiece, aiPlayer]);
 
   // Win Hook
   useEffect(() => {
@@ -51,7 +54,7 @@ function App() {
   }, [gameState.gameStatus]);
 
   const handleCellClick = (r: number, c: number) => {
-    if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
+    if (gameMode === 'ai' && gameState.currentTurn === aiPlayer) return;
     const clickedCell = gameState.board[r][c];
 
     if (gameState.phase === 'deployment') {
@@ -98,7 +101,7 @@ function App() {
   };
 
   const handleUndeployedClick = (id: string, owner: Player) => {
-    if (gameMode === 'ai' && gameState.currentTurn === 'player2') return;
+    if (gameMode === 'ai' && gameState.currentTurn === aiPlayer) return;
     if (gameState.phase !== 'deployment' || owner !== gameState.currentTurn) {
       if (owner !== gameState.currentTurn || gameState.phase !== 'deployment') {
         sounds.playError();
@@ -175,10 +178,16 @@ function App() {
             
             <AnimatePresence>
               {gameMode === 'ai' && (
-                <motion.div initial={{ height: 0, opacity: 0, scale: 0.9 }} animate={{ height: 'auto', opacity: 1, scale: 1 }} exit={{ height: 0, opacity: 0, scale: 0.9 }} style={{ display: 'flex', gap: '0.5rem', overflow: 'hidden' }}>
-                  <button className={`diff-btn ${difficulty === 'easy' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('easy'); }}>Easy</button>
-                  <button className={`diff-btn ${difficulty === 'medium' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('medium'); }}>Medium</button>
-                  <button className={`diff-btn ${difficulty === 'hard' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('hard'); }}>Hard</button>
+                <motion.div initial={{ height: 0, opacity: 0, scale: 0.9 }} animate={{ height: 'auto', opacity: 1, scale: 1 }} exit={{ height: 0, opacity: 0, scale: 0.9 }} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className={`diff-btn ${difficulty === 'easy' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('easy'); }}>Easy</button>
+                    <button className={`diff-btn ${difficulty === 'medium' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('medium'); }}>Medium</button>
+                    <button className={`diff-btn ${difficulty === 'hard' ? 'active' : ''}`} onClick={() => { sounds.playClick(); setDifficulty('hard'); }}>Hard</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className={`diff-btn ${!aiGoesFirst ? 'active' : ''}`} onClick={() => { sounds.playClick(); setAiGoesFirst(false); }}>You First</button>
+                    <button className={`diff-btn ${aiGoesFirst ? 'active' : ''}`} onClick={() => { sounds.playClick(); setAiGoesFirst(true); }}>AI First</button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -201,7 +210,7 @@ function App() {
           <span className={`dot ${gameState.currentTurn}`}></span>
           {gameState.gameStatus === 'ongoing' ? (
             <span style={{ letterSpacing: '0.05em' }}>
-              <strong>{gameState.currentTurn === 'player1' ? 'Player 1' : (gameMode === 'ai' ? 'AI' : 'Player 2')}'s Turn</strong>
+              <strong>{gameState.currentTurn === 'player1' ? (aiPlayer === 'player1' ? 'AI' : 'Player 1') : (aiPlayer === 'player2' ? 'AI' : 'Player 2')}'s Turn</strong>
               <span style={{ opacity: 0.7, marginLeft: '8px' }}>— {gameState.phase === 'deployment' ? 'Deployment Phase' : 'Movement Phase'}</span>
             </span>
           ) : (
@@ -212,7 +221,7 @@ function App() {
 
       <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
         
-        {renderPlayerSidebar('player1', 'Player 1')}
+        {renderPlayerSidebar('player1', aiPlayer === 'player1' ? `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})` : 'Player 1')}
 
         <div style={{ position: 'relative' }}>
           <div className="glass-panel board-container">
@@ -257,8 +266,8 @@ function App() {
                 className="win-overlay"
               >
                 <h2>
-                  {gameState.gameStatus === 'player1_wins' && 'Player 1 Wins!'}
-                  {gameState.gameStatus === 'player2_wins' && (gameMode === 'ai' ? 'AI Wins!' : 'Player 2 Wins!')}
+                  {gameState.gameStatus === 'player1_wins' && (aiPlayer === 'player1' ? 'AI Wins!' : 'Player 1 Wins!')}
+                  {gameState.gameStatus === 'player2_wins' && (aiPlayer === 'player2' ? 'AI Wins!' : 'Player 2 Wins!')}
                   {gameState.gameStatus === 'draw' && 'Draw!'}
                 </h2>
                 <button className="reset-btn" onClick={() => {
@@ -274,7 +283,7 @@ function App() {
           </AnimatePresence>
         </div>
 
-        {renderPlayerSidebar('player2', gameMode === 'ai' ? `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})` : 'Player 2')}
+        {renderPlayerSidebar('player2', aiPlayer === 'player2' ? `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})` : 'Player 2')}
 
         </div>
       </div>
