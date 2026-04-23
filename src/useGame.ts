@@ -143,7 +143,9 @@ export function useGame() {
       const nextTurn = currentTurn === 'player1' ? 'player2' : 'player1';
       let newStatus: GameState['gameStatus'] = prevState.gameStatus;
 
-      if (newPhase === 'movement') {
+      if (checkWin(newBoard, currentTurn)) {
+        newStatus = currentTurn === 'player1' ? 'player1_wins' : 'player2_wins';
+      } else if (newPhase === 'movement') {
         if (!hasValidMoves(nextTurn, newBoard)) {
           newStatus = currentTurn === 'player1' ? 'player1_wins' : 'player2_wins';
         }
